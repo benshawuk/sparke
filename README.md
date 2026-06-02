@@ -74,6 +74,11 @@ keep the SEO, the no-JS fallback, and the progressive enhancement of an MPA.
 Sparke just adds instant client-side swaps on top, with no hydration step and no
 build, bundle, or framework to ship.
 
+A side effect of holding pages in memory: once you've loaded the site and Sparke
+has preloaded its links, you can drop offline and keep navigating - every
+preloaded page still swaps in. Only genuinely server-side actions (POST forms,
+fresh data) need the network.
+
 ## Common tasks
 
 ### Exclude routes
