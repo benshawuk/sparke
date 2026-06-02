@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Swap Two</title>
+  <script src="/sparke.js" data-test></script>
+</head>
+<body>
+  <header id="hdr">Persistent header</header>
+  <main>
+    <h1>Swap Two</h1>
+    <!-- This script must NOT execute when swapped in (case 43). -->
+    <script>window.__swap2ran = true;</script>
+    <!-- This style travels with the content and SHOULD apply (case 44). -->
+    <style>#marker44 { color: rgb(0, 128, 0); }</style>
+    <div id="marker44">styled by in-main style</div>
+    <p><a id="back" href="/demo/_swap1">back</a></p>
+  </main>
+</body>
+</html>

@@ -1,0 +1,169 @@
+:root {
+  --bg: #0f1115;
+  --panel: #171a21;
+  --ink: #e6e8ee;
+  --muted: #9aa3b2;
+  --accent: #5b9dff;
+  --border: #262b35;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font: 16px/1.6 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+header.site {
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  z-index: 10;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
+  flex-wrap: wrap;
+}
+
+.brand {
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-right: 0.5rem;
+}
+
+nav.links {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+nav.links a {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+}
+
+nav.links a:hover { color: var(--ink); background: #1f2530; }
+
+nav.links a[aria-current="page"] {
+  color: #fff;
+  background: var(--accent);
+}
+
+.status {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.toggle {
+  background: #1f2530;
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+}
+.toggle.on { border-color: var(--accent); color: #fff; }
+
+main {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 4rem;
+}
+
+h1 { margin-top: 0; font-size: 2rem; }
+.lead { color: var(--muted); font-size: 1.15rem; }
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  margin: 1.5rem 0;
+}
+
+.pill {
+  display: inline-block;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: #1f2530;
+  color: var(--muted);
+}
+
+code { background: #1f2530; padding: 0.1rem 0.35rem; border-radius: 4px; }
+
+/* --- Tabs (Flowbite "underline" variant, driven by real page links) ------- */
+.tabs { border-bottom: 1px solid var(--border); margin: 1.5rem 0; }
+.tabs ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0 0 -1px;
+  padding: 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+.tabs a {
+  display: inline-block;
+  padding: 0.75rem 1rem;
+  color: var(--muted);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+.tabs a:hover { color: var(--ink); border-bottom-color: #3a4350; }
+/* Active tab is whichever link matches the current URL. Sparke maintains
+   aria-current="page" after every swap, so styling needs no extra JS. */
+.tabs a[aria-current="page"] { color: var(--accent); border-bottom-color: var(--accent); }
+.tabs .disabled {
+  display: inline-block;
+  padding: 0.75rem 1rem;
+  color: #555c68;
+  cursor: not-allowed;
+}
+
+/* View Transitions (demo). Applies only when the Transitions toggle is on and
+   the browser supports the API; respects reduced-motion automatically. */
+
+/* The body crossfade - quick and snappy. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.18s;
+}
+
+/* Example: headings swap INSTANTLY while the body crossfades. Giving a heading
+   its own view-transition-name lifts it out of "root" (so root = everything
+   else, which still crossfades). Then we hide the old heading snapshot and show
+   the new one immediately - no animation, no double-painted overlap.
+   Note: the <h1> and <h2> need DIFFERENT names - the same name twice on one page
+   (tab pages have both) would be a duplicate and abort the transition. */
+main h1 { view-transition-name: page-title; }
+main h2 { view-transition-name: panel-heading; }
+
+::view-transition-old(page-title),
+::view-transition-old(panel-heading) {
+  animation: none;
+  opacity: 0; /* hide the outgoing heading so it doesn't overlap the new one */
+}
+::view-transition-new(page-title),
+::view-transition-new(panel-heading) {
+  animation: none;
+  opacity: 1; /* show the new heading instantly */
+}

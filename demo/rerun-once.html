@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Re-run (once) · Sparke demo</title>
+  <meta name="description" content="A page whose script runs only the first time it is shown.">
+  <link rel="canonical" href="/demo/rerun-once">
+  <link rel="stylesheet" href="style.css">
+  <script src="boot.js"></script>
+</head>
+<body>
+  <header class="site">
+    <div class="bar">
+      <span class="brand">SPARKE</span>
+      <nav class="links"><a href="/demo/">Home</a><a href="/demo/about">About</a><a href="/demo/features">Features</a><a href="/demo/pricing">Pricing</a><a href="/demo/docs">Docs</a><a href="/demo/blog">Blog</a><a href="/demo/faq">FAQ</a><a href="/demo/changelog">Changelog</a><a href="/demo/team">Team</a><a href="/demo/contact">Contact</a><a href="/demo/tabs-profile" data-sparke-active="/demo/tabs-*">Tabs</a><a href="/demo/rerun-repeat" data-sparke-active="/demo/rerun-*">Re-run JS</a><a href="/demo/search">Search</a></nav>
+      <div class="status">
+        <span>Mode: <strong id="mode">?</strong></span>
+        <span>Header mounted: <strong id="mounted">-</strong></span>
+        <span>Now: <strong id="now">-</strong></span>
+        <span>Swaps: <strong id="swaps">0</strong></span>
+        <button id="toggle" class="toggle" type="button">Sparke</button>
+      </div>
+    </div>
+  </header>
+  <main>
+    <h1>Run once only</h1>
+    <p class="lead">This page carries <code>&lt;script data-sparke-rerun="once"&gt;</code>, so
+    Sparke runs it the first time the page is shown and never again.</p>
+    <p>Open the browser console, then bounce between this page and the
+    <a href="/demo/rerun-repeat">repeat page</a> (or Home). The console line below
+    appears <strong>once</strong> - returning here does not log it again, because a
+    run-once script is de-duplicated for the life of the session.</p>
+    <p>Status: <strong id="once-status">waiting</strong></p>
+    <!-- Opt-in: runs only the first time this page is shown. -->
+    <script data-sparke-rerun="once">
+      console.log("[rerun-once] script ran ONCE");
+      var el = document.getElementById("once-status");
+      if (el) el.textContent = "ran (won't log again on revisit - check console)";
+    </script>
+  </main>
+</body>
+</html>

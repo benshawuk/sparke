@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Re-run (repeat) · Sparke demo</title>
+  <meta name="description" content="A page whose script re-runs on every visit.">
+  <link rel="canonical" href="/demo/rerun-repeat">
+  <link rel="stylesheet" href="style.css">
+  <script src="boot.js"></script>
+</head>
+<body>
+  <header class="site">
+    <div class="bar">
+      <span class="brand">SPARKE</span>
+      <nav class="links"><a href="/demo/">Home</a><a href="/demo/about">About</a><a href="/demo/features">Features</a><a href="/demo/pricing">Pricing</a><a href="/demo/docs">Docs</a><a href="/demo/blog">Blog</a><a href="/demo/faq">FAQ</a><a href="/demo/changelog">Changelog</a><a href="/demo/team">Team</a><a href="/demo/contact">Contact</a><a href="/demo/tabs-profile" data-sparke-active="/demo/tabs-*">Tabs</a><a href="/demo/rerun-repeat" data-sparke-active="/demo/rerun-*">Re-run JS</a><a href="/demo/search">Search</a></nav>
+      <div class="status">
+        <span>Mode: <strong id="mode">?</strong></span>
+        <span>Header mounted: <strong id="mounted">-</strong></span>
+        <span>Now: <strong id="now">-</strong></span>
+        <span>Swaps: <strong id="swaps">0</strong></span>
+        <button id="toggle" class="toggle" type="button">Sparke</button>
+      </div>
+    </div>
+  </header>
+  <main>
+    <h1>Re-run on every visit</h1>
+    <p class="lead">This page carries <code>&lt;script data-sparke-rerun&gt;</code>, so Sparke
+    re-executes it every time you swap onto the page.</p>
+    <p>Open the browser console, then bounce between this page and the
+    <a href="/demo/rerun-once">run-once page</a> (or Home). The counter and the
+    console line below increment on <strong>every</strong> arrival here - proof the
+    marked script runs again on each swap, while the JS context (and so the count)
+    survives.</p>
+    <p>Times this page's script has run: <strong id="rerun-count">0</strong></p>
+    <!-- Opt-in: re-executed on every swap into this page. -->
+    <script data-sparke-rerun>
+      window.__rerunCount = (window.__rerunCount || 0) + 1;
+      console.log("[rerun-repeat] script ran, count =", window.__rerunCount);
+      var el = document.getElementById("rerun-count");
+      if (el) el.textContent = window.__rerunCount;
+    </script>
+  </main>
+</body>
+</html>

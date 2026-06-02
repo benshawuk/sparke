@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Ignore hook</title>
+  <!-- data-test exposes the hook; data-ignore excludes /admin/* and /checkout. -->
+  <script src="/sparke.js" data-test data-ignore="/admin/* /checkout"></script>
+</head>
+<body>
+  <main>
+    <h1>Ignore</h1>
+    <a id="adminChild" href="/admin/users">admin child (ignored)</a>
+    <a id="adminBare" href="/admin">admin root (NOT covered by /admin/*)</a>
+    <a id="checkout" href="/checkout">checkout (ignored, exact)</a>
+    <a id="checkoutHtml" href="/checkout.html">checkout.html (ignored, normalises)</a>
+    <a id="checkoutSibling" href="/checkoutx">checkoutx (NOT ignored)</a>
+    <a id="about" href="/about">about (not ignored)</a>
+    <form id="formIgnored" action="/checkout" method="get"><input name="q"><button>go</button></form>
+    <form id="formOk" action="/search" method="get"><input name="q"><button>go</button></form>
+  </main>
+</body>
+</html>

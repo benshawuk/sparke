@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Search · Sparke demo</title>
+  <meta name="description" content="A GET form demo - submitting swaps the results in with no full reload.">
+  <link rel="canonical" href="/demo/search">
+  <link rel="stylesheet" href="style.css">
+  <script src="boot.js"></script>
+</head>
+<body>
+  <header class="site">
+    <div class="bar">
+      <span class="brand">SPARKE</span>
+      <nav class="links"><a href="/demo/">Home</a><a href="/demo/about">About</a><a href="/demo/features">Features</a><a href="/demo/pricing">Pricing</a><a href="/demo/docs">Docs</a><a href="/demo/blog">Blog</a><a href="/demo/faq">FAQ</a><a href="/demo/changelog">Changelog</a><a href="/demo/team">Team</a><a href="/demo/contact">Contact</a><a href="/demo/tabs-profile" data-sparke-active="/demo/tabs-*">Tabs</a><a href="/demo/rerun-repeat" data-sparke-active="/demo/rerun-*">Re-run JS</a><a href="/demo/search">Search</a></nav>
+      <div class="status">
+        <span>Mode: <strong id="mode">?</strong></span>
+        <span>Header mounted: <strong id="mounted">-</strong></span>
+        <span>Now: <strong id="now">-</strong></span>
+        <span>Swaps: <strong id="swaps">0</strong></span>
+        <button id="toggle" class="toggle" type="button">Sparke</button>
+      </div>
+    </div>
+  </header>
+  <main>
+    <h1>Search (GET form)</h1>
+    <p class="lead">This is an ordinary <code>&lt;form method="get"&gt;</code>. With Sparke ON,
+    submitting it swaps the Results page in from memory - no full reload. Watch the navbar:
+    <em>Header mounted</em> stays frozen and <em>Swaps</em> ticks up. Toggle Sparke OFF and submit
+    again to see the normal full-page GET submit (the form still works either way).</p>
+    <form action="/demo/results" method="get" class="card">
+      <p><label>Query<br><input type="text" name="q" id="q" placeholder="e.g. hello world" style="width:100%;padding:.5rem"></label></p>
+      <p><label>Category
+        <select name="cat">
+          <option value="all">All</option>
+          <option value="docs">Docs</option>
+          <option value="blog">Blog</option>
+        </select>
+      </label></p>
+      <p><label><input type="checkbox" name="exact" value="yes"> Exact match</label></p>
+      <button type="submit" name="go" value="1" class="toggle on">Search</button>
+    </form>
+  </main>
+</body>
+</html>

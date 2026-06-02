@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Unit hook</title>
+  <!-- data-test exposes window.__sparkeInternals for the [U] unit cases. -->
+  <script src="/sparke.js" data-test></script>
+</head>
+<body>
+  <main>
+    <h1>Unit</h1>
+    <form id="f" action="/demo/results" method="get">
+      <input type="text" name="q" value="hello world">
+      <input type="text" name="empty" value="">
+      <textarea name="note">multi
+line</textarea>
+      <select name="cat">
+        <option value="all">All</option>
+        <option value="docs" selected>Docs</option>
+      </select>
+      <input type="checkbox" name="exact" value="yes" checked>
+      <input type="checkbox" name="fuzzy" value="yes">
+      <input type="radio" name="r" value="a">
+      <input type="radio" name="r" value="b" checked>
+      <input type="password" name="pw" value="secret">
+      <button type="submit" name="go" value="1">Go</button>
+    </form>
+  </main>
+</body>
+</html>

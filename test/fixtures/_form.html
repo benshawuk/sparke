@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Forms</title>
+  <script src="/sparke.js" data-test></script>
+</head>
+<body>
+  <main>
+    <h1>Forms</h1>
+
+    <!-- 91-93: a plain GET form. -->
+    <form id="fget" action="/demo/_formresult" method="get">
+      <input type="text" name="q" id="q">
+      <textarea name="note" id="note"></textarea>
+      <select name="cat" id="cat">
+        <option value="all">all</option>
+        <option value="docs">docs</option>
+      </select>
+      <input type="checkbox" name="exact" value="yes" id="exact">
+      <input type="checkbox" name="fuzzy" value="yes" id="fuzzy">
+      <button type="submit" name="go" value="1" id="bget">Go</button>
+    </form>
+
+    <!-- 94: submitter formaction overrides the (wrong) form action. -->
+    <form id="faction" action="/demo/_wrong" method="get">
+      <button type="submit" id="baction" formaction="/demo/_formresult">Go</button>
+    </form>
+
+    <!-- 95: a POST form with submitter overrides. -->
+    <form id="fpost" action="/demo/_formresult" method="post">
+      <button type="submit" id="bpostget" formmethod="get">GET override</button>
+      <button type="submit" id="bblanktarget" formtarget="_blank">blank target</button>
+    </form>
+
+    <!-- 96: GET form targeting a new tab. -->
+    <form id="fblank" action="/demo/_formresult" method="get" target="_blank">
+      <button type="submit" id="bblank">Go</button>
+    </form>
+
+    <!-- 98: an HTMX-managed form. -->
+    <form id="fhx" action="/demo/_formresult" method="get" hx-get="/x">
+      <button type="submit" id="bhx">Go</button>
+    </form>
+
+    <!-- 99: a GET form with a file input. -->
+    <form id="ffile" action="/demo/_formresult" method="get">
+      <input type="file" name="up" id="up">
+      <button type="submit" id="bfile">Go</button>
+    </form>
+  </main>
+</body>
+</html>

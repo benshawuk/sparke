@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>S fallback</title>
+  <script src="/sparke.js"></script>
+</head>
+<body>
+  <main>
+    <h1>S fallback</h1>
+    <p><a id="neterr" href="/demo/_p2?neterr=1">network error</a></p>
+    <p><a id="s404" href="/demo/_p2?status=404">404</a></p>
+    <p><a id="s500" href="/demo/_p2?status=500">500</a></p>
+    <p><a id="nonhtml" href="/demo/_p2?type=text/plain">non-HTML</a></p>
+    <p><a id="cross" href="/demo/r?redirect=http://127.0.0.1:8770/demo/_p2">cross-origin redirect</a></p>
+  </main>
+</body>
+</html>

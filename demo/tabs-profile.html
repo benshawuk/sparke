@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Profile · Tabs · Sparke demo</title>
+  <meta name="description" content="Tabs demo - the Profile tab, served as its own page.">
+  <link rel="canonical" href="/demo/tabs-profile">
+  <link rel="stylesheet" href="style.css">
+  <script src="boot.js"></script>
+</head>
+<body>
+  <header class="site">
+    <div class="bar">
+      <span class="brand">SPARKE</span>
+      <nav class="links"><a href="/demo/">Home</a><a href="/demo/about">About</a><a href="/demo/features">Features</a><a href="/demo/pricing">Pricing</a><a href="/demo/docs">Docs</a><a href="/demo/blog">Blog</a><a href="/demo/faq">FAQ</a><a href="/demo/changelog">Changelog</a><a href="/demo/team">Team</a><a href="/demo/contact">Contact</a><a href="/demo/tabs-profile" data-sparke-active="/demo/tabs-*">Tabs</a><a href="/demo/rerun-repeat" data-sparke-active="/demo/rerun-*">Re-run JS</a><a href="/demo/search">Search</a></nav>
+      <div class="status">
+        <span>Mode: <strong id="mode">?</strong></span>
+        <span>Header mounted: <strong id="mounted">-</strong></span>
+        <span>Now: <strong id="now">-</strong></span>
+        <span>Swaps: <strong id="swaps">0</strong></span>
+        <button id="toggle" class="toggle" type="button">Sparke</button>
+      </div>
+    </div>
+  </header>
+  <main>
+    <h1>Tabs</h1>
+    <p class="lead">Each tab is its own page. Sparke swaps only the content - no full reload.</p>
+    <div class="tabs">
+      <ul><li><a href="/demo/tabs-profile" aria-current="page">Profile</a></li><li><a href="/demo/tabs-dashboard">Dashboard</a></li><li><a href="/demo/tabs-settings">Settings</a></li><li><a href="/demo/tabs-contacts">Contacts</a></li><li><span class="disabled">Disabled</span></li></ul>
+    </div>
+    <div class="card"><h2>Profile</h2><p>This panel lives at <code>tabs-profile.html</code>. Each tab is a <strong>separate page with its own URL</strong> - there is no JavaScript tab-switching. Clicking another tab is a real navigation that Sparke intercepts, swapping only this <code>&lt;main&gt;</code> from memory. No full page reload.</p></div>
+  </main>
+</body>
+</html>

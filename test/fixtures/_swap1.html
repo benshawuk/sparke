@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Swap One</title>
+  <script src="/sparke.js" data-test></script>
+</head>
+<body>
+  <header id="hdr">Persistent header</header>
+  <main>
+    <h1>Swap One</h1>
+    <p><a id="toSwap2" href="/demo/_swap2">to Swap Two</a></p>
+    <p><a id="toMulti" href="/demo/_multimain">to multi-main</a></p>
+  </main>
+  <script>
+    // Mark persistent nodes at first parse, and run a live counter, to prove
+    // the JS context and header node survive a <main> swap.
+    window.__counter = 0;
+    setInterval(function () { window.__counter++; }, 30);
+    document.getElementById('hdr').dataset.mounted = 'orig';
+  </script>
+</body>
+</html>

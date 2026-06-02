@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Redirect caching</title>
+  <script src="/sparke.js"></script>
+</head>
+<body>
+  <main>
+    <h1>Redirect caching</h1>
+    <!-- Only the redirecting link is discovered/preloaded. The test adds the
+         clean /demo/_redirdest link AFTER preloading, to prove the redirect
+         cached the page under its FINAL key. -->
+    <p><a id="same" href="/demo/_redir-old">via redirect</a></p>
+  </main>
+</body>
+</html>
