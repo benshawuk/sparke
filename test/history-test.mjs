@@ -27,11 +27,15 @@ import { open, ev, sleep, check, ok, report } from "./cdp.mjs";
 }
 
 // 62. Back to an uncached page -> full reload. We reach B via a full browser
-//     load (rel=external), so B's fresh JS context never cached A; pressing
-//     Back to A is therefore a real reload.
+//     load (rel=external), so B's fresh JS context never cached A. We also add
+//     an unload listener on A, which makes A ineligible for the browser's
+//     back-forward cache - so Back to A is a genuine full reload (the uncached
+//     fallback), not a silent bfcache restore. (Modern Chrome bfcaches even
+//     no-store pages, so a cache header alone no longer forces the reload.)
 {
   const c = await open(`http://localhost:8770/demo/_histA`);
   await sleep(500);
+  await ev(c, `window.addEventListener('unload', function () {})`); // disqualify bfcache
   c.clearEvents();
   await ev(c, `document.getElementById('toBfull').click()`); // full load to B
   await sleep(700);

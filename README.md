@@ -17,7 +17,7 @@ One `<script>` tag. No build step, no package.
 
 <!-- or via CDN -->
 <script
-  src="https://cdn.jsdelivr.net/gh/benshawuk/sparke@v1.0.0/sparke.min.js"
+  src="https://cdn.jsdelivr.net/gh/benshawuk/sparke@1/sparke.min.js"
   defer
 ></script>
 ```
@@ -68,6 +68,11 @@ in-memory swap with no request on the critical path.
 Those libraries solve a different problem (server-driven partials, reactivity,
 no-reload forms) and run happily alongside Sparke. The only time you still see a
 delay is the genuinely uncached case (see [Loading indicator](#loading-indicator)).
+
+Every page Sparke serves is still a complete, server-rendered document - so you
+keep the SEO, the no-JS fallback, and the progressive enhancement of an MPA.
+Sparke just adds instant client-side swaps on top, with no hydration step and no
+build, bundle, or framework to ship.
 
 ## Common tasks
 

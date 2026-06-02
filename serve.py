@@ -16,7 +16,7 @@ without needing a dedicated route file. They compose (e.g. `?delay=200&status=50
     ?type=<mime>       serve the file with this Content-Type (non-HTML fallback)
     ?redirect=<url>    302 to <url> (use a cross-origin URL to test cross-origin)
     ?etag=<token>      send ETag: <token>; honour If-None-Match -> 304 Not Modified
-    ?cache=<value>     send Cache-Control: <value> instead of the default no-store
+    ?cache=<value>     send Cache-Control: <value> instead of the default no-cache
 
 Usage (from the project root, so /demo/... and ../sparke.js both resolve):
 
@@ -33,15 +33,15 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 class CleanURLHandler(SimpleHTTPRequestHandler):
     def end_headers(self):
-        # Dev server: never let the browser cache anything, so edits to
-        # sparke.js / boot.js / pages always show up on reload. (Caching is the
-        # source of "I changed it but still see the old version" confusion.)
-        # A response may opt out via ?cache=... (sets self._cache_set), e.g. for
-        # the freshness/image tests that need real HTTP caching.
+        # Dev server: use no-cache (store, but always revalidate) rather than
+        # no-store (never store). Edits to sparke.js / boot.js / pages still show
+        # up on reload because the browser revalidates, but the response is
+        # storable - so Sparke's in-memory preload cache works and its no-store
+        # handling isn't triggered by the dev server's own convenience header.
+        # A response may opt out via ?cache=... (sets self._cache_set) - e.g. a
+        # test can send ?cache=no-store to exercise the real no-store path.
         if not getattr(self, "_cache_set", False):
-            self.send_header("Cache-Control", "no-store, must-revalidate")
-            self.send_header("Pragma", "no-cache")
-            self.send_header("Expires", "0")
+            self.send_header("Cache-Control", "no-cache")
         super().end_headers()
 
     # Same-origin redirects, for demonstrating/testing redirect handling.

@@ -50,10 +50,41 @@
   // Configuration via data-* attributes on the <script> tag (read once, here,
   // while document.currentScript still points at us). Tier-1 config only.
   var dataset = (document.currentScript && document.currentScript.dataset) || {};
+
+  // navigator.connection.saveData: a data-conscious visitor (mainly Android
+  // data-saver). When set, Sparke backs off automatically - no image warming and
+  // the crawl drops to a single hop. Best-effort (Chromium-only signal).
+  var saveData = !!(navigator.connection && navigator.connection.saveData);
+
   var config = {
     // data-transitions: opt into the View Transitions API (crossfade + any
     // author-defined shared-element morphs). Off unless the attribute present.
     transitions: dataset.transitions != null,
+    // data-preload: how far ahead Sparke preloads page HTML.
+    //   all  (default) - crawl the whole same-origin site, bounded by cacheSize
+    //   page           - only the links on each visited page (one hop)
+    //   none           - no preloading (Sparke still swaps on click)
+    // saveData drops "all" to "page". (visible/hover are reserved scope names;
+    // treated as "all" for now - a large-site refinement for later.)
+    preload: (function () {
+      var v = (dataset.preload || "all").toLowerCase();
+      if (v === "none" || v === "page") return v;
+      return saveData ? "page" : "all";
+    })(),
+    // data-preload-images: warm images on preloaded pages so a swap has no
+    // pop-in. all (default) = every <img>; off = none. saveData forces off.
+    // (page/visible are reserved; treated as "all" for now.)
+    preloadImages: (function () {
+      if (saveData) return "off";
+      var v = (dataset.preloadImages || "all").toLowerCase();
+      return v === "off" || v === "none" ? "off" : "all";
+    })(),
+    // data-cache-size: LRU cap on parsed documents kept in memory; also bounds
+    // the crawl. Default 100; minimum 1 (the page being viewed).
+    cacheSize: (function () {
+      var n = parseInt(dataset.cacheSize, 10);
+      return isNaN(n) || n < 1 ? 100 : n;
+    })(),
     // data-loading-delay: how long (ms) a navigation must be in flight before
     // Sparke sets <html data-sparke-loading>. The debounce stops fast/cached
     // navigations from flashing an indicator. Default 150ms; override with the
@@ -111,10 +142,14 @@
     }
   }
 
-  /** Resolve an href to an absolute URL string, or null if it cannot parse. */
-  function resolveUrl(href) {
+  /**
+   * Resolve an href to an absolute URL string, or null if it cannot parse.
+   * `base` defaults to the live document; pass a page's own URL to resolve
+   * links/images discovered inside a cached (inert) document.
+   */
+  function resolveUrl(href, base) {
     try {
-      return new URL(href, window.location.href).href;
+      return new URL(href, base || window.location.href).href;
     } catch (e) {
       return null;
     }
@@ -128,20 +163,23 @@
    * Decide whether a given <a> element is one Sparke should handle.
    * Anything that returns false is left entirely to the browser.
    */
-  function isEligibleLink(a) {
+  function isEligibleLink(a, baseHref) {
     if (!a || a.tagName !== "A") return false;
+    baseHref = baseHref || window.location.href;
 
     // Must have a concrete href attribute (not a JS link or anchor with none).
     var hrefAttr = a.getAttribute("href");
     if (!hrefAttr) return false;
 
-    // Honour explicit opt-outs.
-    if (a.target && a.target !== "" && a.target !== "_self") return false;
+    // Honour explicit opt-outs. Read via getAttribute so this also works on
+    // anchors inside a parsed (inert) document during the crawl.
+    var target = a.getAttribute("target");
+    if (target && target !== "" && target !== "_self") return false;
     if (a.hasAttribute("download")) return false;
     var rel = (a.getAttribute("rel") || "").toLowerCase();
     if (rel.split(/\s+/).indexOf("external") !== -1) return false;
 
-    var url = resolveUrl(hrefAttr);
+    var url = resolveUrl(hrefAttr, baseHref);
     if (!url) return false;
 
     var u;
@@ -162,7 +200,7 @@
       return false;
 
     // Ignore hash-only links (same document, just a different fragment).
-    var here = new URL(window.location.href);
+    var here = new URL(baseHref);
     if (
       u.hash &&
       normalizePath(u.pathname) === normalizePath(here.pathname) &&
@@ -175,14 +213,15 @@
   }
 
   /** Collect every eligible link currently in the document. */
-  function discoverLinks() {
-    var anchors = document.querySelectorAll("a[href]");
+  function discoverLinks(root, baseHref) {
+    root = root || document;
+    var anchors = root.querySelectorAll("a[href]");
     var urls = [];
     var seen = {};
     for (var i = 0; i < anchors.length; i++) {
       var a = anchors[i];
-      if (!isEligibleLink(a)) continue;
-      var url = resolveUrl(a.getAttribute("href"));
+      if (!isEligibleLink(a, baseHref)) continue;
+      var url = resolveUrl(a.getAttribute("href"), baseHref);
       if (!url) continue;
       var key = cacheKey(url);
       if (seen[key]) continue;
@@ -212,8 +251,10 @@
         if (!res.ok) return null;
         var type = res.headers.get("content-type") || "";
         if (type.indexOf("text/html") === -1) return null;
+        var cc = (res.headers.get("cache-control") || "").toLowerCase();
+        var noStore = cc.indexOf("no-store") !== -1;
         return res.text().then(function (html) {
-          return { html: html, finalUrl: res.url || url };
+          return { html: html, finalUrl: res.url || url, noStore: noStore };
         });
       })
       .then(function (data) {
@@ -221,7 +262,9 @@
         if (new URL(data.finalUrl).origin !== window.location.origin) return null;
         var doc = new DOMParser().parseFromString(data.html, "text/html");
         var entry = { url: data.finalUrl, html: data.html, document: doc };
-        pages.set(cacheKey(data.finalUrl), entry); // key by FINAL url
+        // A no-store page must always be fetched fresh: return it for this
+        // navigation, but never add it to the warm set.
+        if (!data.noStore) cacheSet(cacheKey(data.finalUrl), entry); // key by FINAL url
         return entry;
       })
       .catch(function () {
@@ -242,12 +285,7 @@
     return promise;
   }
 
-  /** Preload a single URL into the cache. Failures are swallowed. */
-  function preload(url) {
-    loadPage(url, "preload");
-  }
-
-  /** Schedule preloading of all discovered links when the browser is idle. */
+  /** Run a callback when the browser is idle (or shortly after, as a fallback). */
   var schedule =
     window.requestIdleCallback ||
     function (cb) {
@@ -256,11 +294,147 @@
       }, 200);
     };
 
+  // ---- LRU cache ------------------------------------------------------------
+  // A Map keeps insertion order, so the oldest key is the least-recently-used.
+  // We re-insert on write and on hit, and evict from the front over the cap.
+
+  /** Add or refresh a cache entry, evicting cold pages over `cacheSize`. */
+  function cacheSet(key, entry) {
+    if (pages.has(key)) pages.delete(key);
+    pages.set(key, entry);
+    var currentKey = cacheKey(currentUrl);
+    var step;
+    var it = pages.keys();
+    while (pages.size > config.cacheSize && !(step = it.next()).done) {
+      if (step.value !== currentKey) pages.delete(step.value); // never evict the live page
+    }
+  }
+
+  /** Mark a cached entry most-recently-used so the cap evicts colder ones. */
+  function cacheTouch(key) {
+    if (!pages.has(key)) return;
+    var entry = pages.get(key);
+    pages.delete(key);
+    pages.set(key, entry);
+  }
+
+  // ---- Image warming --------------------------------------------------------
+  // Warms the BROWSER HTTP cache (not Sparke's heap), so a swap has no pop-in.
+
+  var warmedImages = {}; // resolved image URLs already queued/requested
+  var imageQueue = []; // URLs waiting to be warmed
+  var imageActive = 0; // new Image() loads currently in flight
+  var MAX_IMAGE_WARMS = 4; // concurrency cap: never flood (and rate-limit) a host
+
+  /** First candidate URL in a srcset ("a.jpg 1x, b.jpg 2x" -> "a.jpg"). */
+  function firstSrcsetUrl(srcset) {
+    var first = srcset.split(",")[0];
+    return first ? first.trim().split(/\s+/)[0] : null;
+  }
+
+  /**
+   * Queue every <img> on a cached (inert) page for background warming, then
+   * pump the queue. Includes loading="lazy" - the whole point is an instant,
+   * local feel. <img src> plus the first srcset candidate; CSS backgrounds and
+   * art-direction are out of scope.
+   */
+  function warmImages(entry) {
+    if (config.preloadImages === "off" || !entry || !entry.document) return;
+    var imgs = entry.document.querySelectorAll("img");
+    for (var i = 0; i < imgs.length; i++) {
+      var img = imgs[i];
+      var ref = img.getAttribute("src");
+      if (!ref) {
+        var ss = img.getAttribute("srcset");
+        ref = ss ? firstSrcsetUrl(ss) : null;
+      }
+      if (!ref) continue;
+      var url = resolveUrl(ref, entry.url);
+      if (!url || warmedImages[url]) continue;
+      warmedImages[url] = true; // mark queued so it's never enqueued twice
+      imageQueue.push(url);
+    }
+    schedule(pumpImages);
+  }
+
+  /** Free a warm slot when an image settles (load OR error) and pump the next. */
+  function imageSettled() {
+    imageActive--;
+    pumpImages();
+  }
+
+  /**
+   * Warm queued images at most MAX_IMAGE_WARMS at a time, via new Image()
+   * (download + decode ahead). Capping concurrency is what stops an aggressive
+   * crawl from flooding - and being rate-limited by - an image host, which would
+   * otherwise break the very images it is trying to warm.
+   */
+  function pumpImages() {
+    while (imageActive < MAX_IMAGE_WARMS && imageQueue.length) {
+      imageActive++;
+      var pre = new Image();
+      pre.onload = imageSettled;
+      pre.onerror = imageSettled;
+      pre.src = imageQueue.shift();
+    }
+  }
+
+  // ---- Preloading + whole-site crawl ---------------------------------------
+  // data-preload "all" fans out into a bounded breadth-first crawl: preload a
+  // page's HTML, warm its images, then discover its links and repeat - capped
+  // by cacheSize. "page" stops after one hop; "none" disables it.
+
+  var crawlSeen = {}; // cacheKeys already discovered (queued or cached)
+  var crawlQueue = [];
+  var crawlPending = false;
+  var CRAWL_BATCH = 4; // pages started per idle tick; HTML stays ahead of images
+
+  /** Queue eligible URLs for preloading, skipping ones already seen/cached. */
+  function enqueue(urls) {
+    if (config.preload === "none") return;
+    for (var i = 0; i < urls.length; i++) {
+      var key = cacheKey(urls[i]);
+      if (crawlSeen[key]) continue;
+      crawlSeen[key] = true;
+      if (pages.has(key)) continue; // already warm
+      crawlQueue.push(urls[i]);
+    }
+    scheduleCrawl();
+  }
+
+  function scheduleCrawl() {
+    if (crawlPending || !crawlQueue.length || pages.size >= config.cacheSize) return;
+    crawlPending = true;
+    schedule(crawlStep);
+  }
+
+  function crawlStep() {
+    crawlPending = false;
+    var n = 0;
+    while (crawlQueue.length && n < CRAWL_BATCH && pages.size < config.cacheSize) {
+      loadPage(crawlQueue.shift(), "preload").then(onCrawled);
+      n++;
+    }
+    scheduleCrawl(); // drain the rest on later ticks (no-op once empty/capped)
+  }
+
+  function onCrawled(entry) {
+    if (!entry) return;
+    warmImages(entry);
+    if (config.preload === "all") {
+      // Transitive: follow this page's links too, resolved against its own URL.
+      enqueue(discoverLinks(entry.document, entry.url));
+    }
+  }
+
+  /**
+   * Start preloading from the current live page. With data-preload="all" this
+   * fans out into the bounded whole-site crawl; "page" stops after one hop;
+   * "none" does nothing. Re-run after each swap so links that appear only in
+   * swapped-in content also get discovered (fixes slow-connection tab lag).
+   */
   function preloadAll() {
-    var urls = discoverLinks();
-    schedule(function () {
-      for (var i = 0; i < urls.length; i++) preload(urls[i]);
-    });
+    enqueue(discoverLinks(document, window.location.href));
   }
 
   // ===========================================================================
@@ -716,6 +890,11 @@
       // Announce the new page to assistive technology (forward + back/forward).
       announce(document.title);
       emit("sparke:after-swap", { from: from, to: to });
+      // One-hop preloading ("page") needs the now-live page re-discovered so its
+      // own links get preloaded. "all" already crawls transitively from the
+      // entry page, so re-running here would only repeat work (and perturb
+      // timing); "none" preloads nothing.
+      if (config.preload === "page") preloadAll();
     }
 
     if (useTransitions()) {
@@ -809,6 +988,7 @@
     if (entry) {
       // Cached, same-origin page. Show exactly what was requested (keeps #hash).
       // Cancel any indicator left over from a superseded in-flight navigation.
+      cacheTouch(key); // most-recently-used
       loadingStop();
       if (render(entry, url, push, restoreScroll) === "failed") fallback(url);
       return;
