@@ -9,7 +9,7 @@
 //   - ?delay, ?status, ?type                (timing / fallbacks)
 // and image preloading (X) will additionally need cacheable images (serve them
 // with ?cache=max-age=... since the default is no-store).
-import { pending, report } from "./cdp.mjs";
+import { openCounting, ev, sleep, check, ok, pending, report } from "./cdp.mjs";
 
 // V. Preloading scope & crawl ----------------------------------------------
 pending("139 data-preload=all crawls the whole reachable site (bounded by cache size)");
@@ -20,10 +20,41 @@ pending("143 crawl stops at the cache-size budget (no thrashing)");
 pending("144 inter-tab links get preloaded after navigating into the section (slow-3G case)");
 
 // W. Freshness / revalidation ----------------------------------------------
-pending("145 after a swap, the current page's links are re-validated in the background");
-pending("146 an entry checked within data-revalidate seconds is NOT re-fetched (throttle)");
+
+// 145 + 148. data-revalidate=0: after a swap, the cached links on the new page
+//   get a quiet background re-check - but the page being viewed is left alone.
+{
+  const { c, reqs } = await openCounting(`http://localhost:8770/demo/_reval0`);
+  await sleep(400);
+  const tgtBefore = reqs.filter((r) => r.url.endsWith("/demo/_revaltgt0")).length;
+  ok("145 setup: target was preloaded", tgtBefore >= 1);
+  await ev(c, `document.getElementById('toT').click()`);
+  await sleep(500);
+  const entryAfter = reqs.filter((r) => r.url.endsWith("/demo/_reval0")).length;
+  const tgtAfter = reqs.filter((r) => r.url.endsWith("/demo/_revaltgt0")).length;
+  ok("145 a cached link is re-validated in the background", entryAfter >= 1);
+  check("148 the page being viewed is not re-fetched", tgtAfter, tgtBefore);
+  check(
+    "148 the viewed page is left in place (not disturbed)",
+    await ev(c, "document.querySelector('main h1').textContent"),
+    "Reval Target 0"
+  );
+  c.close();
+}
+
+// 146. Throttle: a link cached far more recently than data-revalidate (300s
+//   here) is NOT re-fetched on navigation.
+{
+  const { c, reqs } = await openCounting(`http://localhost:8770/demo/_reval60`);
+  await sleep(400);
+  await ev(c, `document.getElementById('toT').click()`);
+  await sleep(500);
+  const entryAfter = reqs.filter((r) => r.url.endsWith("/demo/_reval60")).length;
+  check("146 a fresh entry within the throttle window is not re-fetched", entryAfter, 0);
+  c.close();
+}
+
 pending("147 conditional request: 304 keeps cached entry; 200 updates it");
-pending("148 the page currently being viewed is never swapped by background revalidation");
 pending("149 Cache-Control: no-store pages are not cached (always fresh)");
 pending("150 Cache-Control: max-age governs whether revalidation hits the network");
 

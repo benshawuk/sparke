@@ -85,6 +85,21 @@
       var n = parseInt(dataset.cacheSize, 10);
       return isNaN(n) || n < 1 ? 100 : n;
     })(),
+    // data-revalidate: stale-while-revalidate freshness. After each swap, the
+    // links on the new page that are already cached get a quiet background
+    // re-check (through the browser HTTP cache, so an unchanged page is a free
+    // 304); a changed page updates the in-memory copy for next time, never
+    // disturbing the page you're viewing. This is the throttle in SECONDS - an
+    // entry checked more recently than this is skipped. Default 60; 0 = check
+    // every navigation; "off" = never (a pure session cache). Stored as ms,
+    // with Infinity meaning "never".
+    revalidateMs: (function () {
+      var raw = (dataset.revalidate || "").toLowerCase();
+      if (raw === "off") return Infinity;
+      var n = parseInt(dataset.revalidate, 10);
+      if (isNaN(n) || n < 0) return 60000;
+      return n * 1000;
+    })(),
     // data-loading-delay: how long (ms) a navigation must be in flight before
     // Sparke sets <html data-sparke-loading>. The debounce stops fast/cached
     // navigations from flashing an indicator. Default 150ms; override with the
@@ -261,7 +276,7 @@
         if (!data) return null;
         if (new URL(data.finalUrl).origin !== window.location.origin) return null;
         var doc = new DOMParser().parseFromString(data.html, "text/html");
-        var entry = { url: data.finalUrl, html: data.html, document: doc };
+        var entry = { url: data.finalUrl, html: data.html, document: doc, checkedAt: Date.now() };
         // A no-store page must always be fetched fresh: return it for this
         // navigation, but never add it to the warm set.
         if (!data.noStore) cacheSet(cacheKey(data.finalUrl), entry); // key by FINAL url
@@ -435,6 +450,80 @@
    */
   function preloadAll() {
     enqueue(discoverLinks(document, window.location.href));
+  }
+
+  // ---- Revalidation (stale-while-revalidate) --------------------------------
+  // After each swap, re-check the cached pages reachable from the new one, so a
+  // long browsing session can't drift stale. Activity-driven (no timers): the
+  // browser HTTP cache makes an unchanged page a free 304; a changed page
+  // updates the in-memory copy for next time. The page being viewed is never
+  // re-fetched or re-rendered.
+
+  var revalQueue = [];
+  var revalPending = false;
+
+  function scheduleReval() {
+    if (revalPending || !revalQueue.length) return;
+    revalPending = true;
+    schedule(revalStep);
+  }
+
+  function revalStep() {
+    revalPending = false;
+    var n = 0;
+    while (revalQueue.length && n < CRAWL_BATCH) {
+      revalidateEntry(revalQueue.shift());
+      n++;
+    }
+    scheduleReval();
+  }
+
+  /** Re-fetch one cached page; update its in-memory copy only if it changed. */
+  function revalidateEntry(url) {
+    var key = cacheKey(url);
+    if (!pages.has(key)) return; // evicted since queued
+    fetch(url, { credentials: "same-origin", headers: { "X-Sparke": "preload" } })
+      .then(function (res) {
+        if (!res.ok) return null;
+        var type = res.headers.get("content-type") || "";
+        if (type.indexOf("text/html") === -1) return null;
+        var cc = (res.headers.get("cache-control") || "").toLowerCase();
+        if (cc.indexOf("no-store") !== -1) {
+          pages.delete(key); // turned no-store: drop it, always fetch fresh next time
+          return null;
+        }
+        if (new URL(res.url || url).origin !== window.location.origin) return null;
+        return res.text();
+      })
+      .then(function (html) {
+        var entry = pages.get(key);
+        if (!entry || html == null || html === entry.html) return; // unchanged
+        entry.html = html;
+        entry.document = new DOMParser().parseFromString(html, "text/html");
+        warmImages(entry); // freshen any newly-referenced images
+      })
+      .catch(function () {});
+  }
+
+  /**
+   * Queue stale cached links from the current page for a background re-check,
+   * honouring the data-revalidate throttle. Runs after every swap.
+   */
+  function revalidateLinks() {
+    if (config.revalidateMs === Infinity) return; // off
+    var urls = discoverLinks(document, window.location.href);
+    var now = Date.now();
+    var currentKey = cacheKey(currentUrl);
+    for (var i = 0; i < urls.length; i++) {
+      var key = cacheKey(urls[i]);
+      if (key === currentKey) continue; // never re-fetch the page being viewed
+      var entry = pages.get(key);
+      if (!entry) continue; // not cached -> the preload path owns it
+      if (now - (entry.checkedAt || 0) < config.revalidateMs) continue; // throttled
+      entry.checkedAt = now; // mark checked now, so one nav queues it at most once
+      revalQueue.push(urls[i]);
+    }
+    scheduleReval();
   }
 
   // ===========================================================================
@@ -895,6 +984,8 @@
       // entry page, so re-running here would only repeat work (and perturb
       // timing); "none" preloads nothing.
       if (config.preload === "page") preloadAll();
+      // Quietly re-check the now-reachable cached pages for freshness.
+      revalidateLinks();
     }
 
     if (useTransitions()) {
@@ -1185,6 +1276,7 @@
       url: window.location.href,
       html: snapshot,
       document: new DOMParser().parseFromString(snapshot, "text/html"),
+      checkedAt: Date.now(),
     });
     currentUrl = window.location.href;
 
