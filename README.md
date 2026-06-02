@@ -7,37 +7,6 @@ Just include the JS file - no build step, no config, instant super-snappy websit
 Sparke uses progressive enhancement, so it fails safely:
 if JavaScript is unavailable, the browser just behaves as a normal MPA.
 
-## Why
-
-Most "interactive" libraries still pay a network round trip on every click.
-Alpine, Livewire, Inertia, and HTMX all wait until you click before they go to
-the server, fetch the response, and only then update the page. The interaction
-feels modern, but the *navigation* is still gated on the network: click, wait
-for the request to leave, wait for the server to respond, wait for it to come
-back. On a fast connection that's tens of milliseconds; on a slow or distant
-one it's a visible, unavoidable pause every single time. The work only *starts*
-when you click.
-
-Sparke flips the order. It does the network work **before** you click, not
-after. While the browser is idle it quietly preloads the same-origin pages you
-can reach into memory. By the time you actually click, the next page is already
-sitting in memory, so the click triggers an instant in-memory swap with no
-request on the critical path at all. That's the difference between a true SPA
-and the round-trip-on-click model: the round-trip libraries move the *work* to
-the client but keep the *waiting* on the click, while Sparke moves the waiting
-off the click entirely.
-
-|                         | When the network work happens | What a click feels like                |
-| ----------------------- | ----------------------------- | -------------------------------------- |
-| HTMX / Alpine / Livewire / Inertia | After the click    | Delay = round trip, every time         |
-| Sparke (true SPA)       | Before the click, while idle  | Instant swap from memory               |
-
-Those libraries solve a different problem (server-driven partial updates,
-reactivity, no-reload forms), and Sparke happily runs alongside them. But for
-plain page-to-page navigation, preloading is what makes it feel instant rather
-than merely fast. The only time you see a delay is the genuinely uncached case
-(see [Loading indicator](#loading-indicator)).
-
 ## Installation
 
 One `<script>` tag. No build step, no package.
@@ -80,6 +49,25 @@ you exclude with `data-ignore`.
 **Forms:** GET forms are intercepted and swapped like a link (fields serialized
 into the query string). POST and other methods do an ordinary full submit - use
 HTMX or Turbo if you need no-reload POST. Forms with `hx-*` attributes are skipped.
+
+## Why
+
+Alpine, Livewire, Inertia, and HTMX only hit the network *after* you click, so
+every navigation is gated on a round trip - click, wait, then the page updates.
+On a slow or distant connection that's a visible pause every single time.
+
+Sparke flips the order: it preloads reachable same-origin pages into memory
+while the browser is idle, *before* you click. So the click is an instant
+in-memory swap with no request on the critical path.
+
+|                                    | Network work happens         | A click feels like      |
+| ---------------------------------- | ---------------------------- | ----------------------- |
+| HTMX / Alpine / Livewire / Inertia | After the click              | Delay = round trip      |
+| Sparke (true SPA)                  | Before the click, while idle | Instant swap from memory |
+
+Those libraries solve a different problem (server-driven partials, reactivity,
+no-reload forms) and run happily alongside Sparke. The only time you still see a
+delay is the genuinely uncached case (see [Loading indicator](#loading-indicator)).
 
 ## Common tasks
 
