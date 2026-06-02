@@ -67,4 +67,38 @@ pending("155 image preloading does not affect the LRU doc cap (browser-cache-bac
 pending("156 scope dial-down (page/visible) limits which pages' images are warmed");
 pending("157 navigator.connection.saveData true -> image preloading off, scope reduced");
 
+// Y. Just-in-time preload scopes (visible / hover) -------------------------
+
+// 158. data-preload=hover: nothing preloads on load; hovering (or focusing) a
+//   link fetches its page just-in-time.
+{
+  const { c, reqs } = await openCounting(`http://localhost:8770/demo/_hover`);
+  await sleep(400);
+  check("158 hover: nothing preloaded on load", reqs.filter((r) => r.url.endsWith("/demo/_hovertgt")).length, 0);
+  await ev(
+    c,
+    `document.getElementById('toT').dispatchEvent(new PointerEvent('pointerover', { bubbles: true }))`
+  );
+  await sleep(400);
+  ok("158 hover: the hovered link's page is preloaded", reqs.some((r) => r.url.endsWith("/demo/_hovertgt")));
+  c.close();
+}
+
+// 159. data-preload=visible: an in-view link preloads; a below-the-fold one
+//   waits until it's scrolled into view.
+{
+  const { c, reqs } = await openCounting(`http://localhost:8770/demo/_visible`);
+  await sleep(500);
+  ok("159 visible: an in-view link is preloaded", reqs.some((r) => r.url.endsWith("/demo/_vistgtnear")));
+  check(
+    "159 visible: a below-fold link is not preloaded yet",
+    reqs.filter((r) => r.url.endsWith("/demo/_vistgtfar")).length,
+    0
+  );
+  await ev(c, `window.scrollTo(0, document.body.scrollHeight)`);
+  await sleep(500);
+  ok("159 visible: scrolling it into view preloads it", reqs.some((r) => r.url.endsWith("/demo/_vistgtfar")));
+  c.close();
+}
+
 report("future");

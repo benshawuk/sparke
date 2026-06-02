@@ -63,12 +63,14 @@
     // data-preload: how far ahead Sparke preloads page HTML.
     //   all  (default) - crawl the whole same-origin site, bounded by cacheSize
     //   page           - only the links on each visited page (one hop)
+    //   visible        - a link's page when it scrolls near the viewport
+    //   hover          - a link's page when it's hovered/focused (just-in-time)
     //   none           - no preloading (Sparke still swaps on click)
-    // saveData drops "all" to "page". (visible/hover are reserved scope names;
-    // treated as "all" for now - a large-site refinement for later.)
+    // An explicit narrow scope is respected as-is; "all" (or anything
+    // unrecognised) is the bold default, which saveData trims to one hop.
     preload: (function () {
       var v = (dataset.preload || "all").toLowerCase();
-      if (v === "none" || v === "page") return v;
+      if (v === "none" || v === "page" || v === "visible" || v === "hover") return v;
       return saveData ? "page" : "all";
     })(),
     // data-preload-images: warm images on preloaded pages so a swap has no
@@ -442,14 +444,98 @@
     }
   }
 
+  // ---- Just-in-time scopes: visible (viewport) + hover ----------------------
+
+  /** Preload one URL right away (no transitive crawl); used by visible/hover. */
+  function preloadUrl(url) {
+    var key = cacheKey(url);
+    if (crawlSeen[key] || pages.has(key)) return;
+    crawlSeen[key] = true;
+    loadPage(url, "preload").then(onCrawled); // warms images; transitive only if "all"
+  }
+
+  var linkObserver = null;
+  var observedLinks = typeof WeakSet === "function" ? new WeakSet() : null;
+
   /**
-   * Start preloading from the current live page. With data-preload="all" this
-   * fans out into the bounded whole-site crawl; "page" stops after one hop;
-   * "none" does nothing. Re-run after each swap so links that appear only in
-   * swapped-in content also get discovered (fixes slow-connection tab lag).
+   * data-preload="visible": preload a link's page as it scrolls near the
+   * viewport (rootMargin warms it a little early). Falls back to one-hop
+   * preloading where IntersectionObserver is unavailable. Called again after
+   * each swap to pick up the new page's links.
+   */
+  function observeLinks() {
+    if (typeof IntersectionObserver === "undefined") {
+      enqueue(discoverLinks(document, window.location.href)); // graceful fallback
+      return;
+    }
+    if (!linkObserver) {
+      linkObserver = new IntersectionObserver(
+        function (entries) {
+          for (var j = 0; j < entries.length; j++) {
+            if (!entries[j].isIntersecting) continue;
+            var a = entries[j].target;
+            linkObserver.unobserve(a);
+            if (isEligibleLink(a)) {
+              var url = resolveUrl(a.getAttribute("href"));
+              if (url) preloadUrl(url);
+            }
+          }
+        },
+        { rootMargin: "200px" }
+      );
+    }
+    var anchors = document.querySelectorAll("a[href]");
+    for (var i = 0; i < anchors.length; i++) {
+      var a = anchors[i];
+      if (observedLinks && observedLinks.has(a)) continue;
+      if (!isEligibleLink(a)) continue;
+      if (observedLinks) observedLinks.add(a);
+      linkObserver.observe(a);
+    }
+  }
+
+  /**
+   * data-preload="hover": preload a link the moment it's hovered or focused
+   * (just-in-time, before the click). One delegated listener, so swapped-in
+   * links are covered automatically.
+   */
+  var hoverArmed = false;
+  function armHover() {
+    if (hoverArmed) return;
+    hoverArmed = true;
+    var onIntent = function (e) {
+      var a = e.target && e.target.closest ? e.target.closest("a[href]") : null;
+      if (a && isEligibleLink(a)) {
+        var url = resolveUrl(a.getAttribute("href"));
+        if (url) preloadUrl(url);
+      }
+    };
+    document.addEventListener("pointerover", onIntent);
+    document.addEventListener("focusin", onIntent);
+    document.addEventListener("touchstart", onIntent, { passive: true });
+  }
+
+  /**
+   * Begin preloading from the current page, per data-preload:
+   *   all     - bounded whole-site crawl (transitive)
+   *   page    - the current page's links only (one hop, re-run per navigation)
+   *   visible - links as they scroll near the viewport
+   *   hover   - a link when it's hovered/focused
+   *   none    - nothing
    */
   function preloadAll() {
-    enqueue(discoverLinks(document, window.location.href));
+    switch (config.preload) {
+      case "none":
+        return;
+      case "hover":
+        armHover();
+        return;
+      case "visible":
+        observeLinks();
+        return;
+      default: // all + page
+        enqueue(discoverLinks(document, window.location.href));
+    }
   }
 
   // ---- Revalidation (stale-while-revalidate) --------------------------------
@@ -979,11 +1065,12 @@
       // Announce the new page to assistive technology (forward + back/forward).
       announce(document.title);
       emit("sparke:after-swap", { from: from, to: to });
-      // One-hop preloading ("page") needs the now-live page re-discovered so its
-      // own links get preloaded. "all" already crawls transitively from the
-      // entry page, so re-running here would only repeat work (and perturb
-      // timing); "none" preloads nothing.
-      if (config.preload === "page") preloadAll();
+      // Pick up links revealed by this swap, per scope: "page" re-discovers the
+      // now-live page (one hop), "visible" observes its new links. "all" already
+      // crawled transitively from the entry page; "hover" uses a delegated
+      // listener that covers swapped-in links; "none" preloads nothing.
+      if (config.preload === "page") enqueue(discoverLinks(document, window.location.href));
+      else if (config.preload === "visible") observeLinks();
       // Quietly re-check the now-reachable cached pages for freshness.
       revalidateLinks();
     }
