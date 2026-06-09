@@ -177,6 +177,23 @@
   // ===========================================================================
 
   /**
+   * True if a link is claimed by Livewire's own SPA navigation (wire:navigate,
+   * with or without modifiers like .hover). Such links are left entirely to
+   * Livewire, so Sparke and wire:navigate never both intercept the same click.
+   * (Same principle as the hx-* deference for HTMX-managed forms.) For the best,
+   * uniform experience, don't use wire:navigate with Sparke at all - let Sparke
+   * own every navigation.
+   */
+  function hasWireNavigate(a) {
+    var attrs = a.attributes;
+    for (var i = 0; i < attrs.length; i++) {
+      var n = attrs[i].name;
+      if (n === "wire:navigate" || n.indexOf("wire:navigate.") === 0) return true;
+    }
+    return false;
+  }
+
+  /**
    * Decide whether a given <a> element is one Sparke should handle.
    * Anything that returns false is left entirely to the browser.
    */
@@ -195,6 +212,10 @@
     if (a.hasAttribute("download")) return false;
     var rel = (a.getAttribute("rel") || "").toLowerCase();
     if (rel.split(/\s+/).indexOf("external") !== -1) return false;
+
+    // Leave links Livewire owns for its own SPA navigation to Livewire, so the
+    // two navigation systems can never both intercept the same click.
+    if (hasWireNavigate(a)) return false;
 
     var url = resolveUrl(hrefAttr, baseHref);
     if (!url) return false;
@@ -866,6 +887,50 @@
   }
 
   // ===========================================================================
+  // Alpine teardown (no-op unless Alpine is on the page)
+  // ===========================================================================
+  //
+  // A swap removes whole DOM subtrees. Alpine - which Livewire is built on -
+  // tears an element down (running its cleanups: effects, listeners, wire:poll
+  // timers, Echo subscriptions) via its MutationObserver only when the *removed*
+  // node was itself Alpine-initialised. A plain wrapper like <main> sitting above
+  // the component roots is never marked, so Alpine skips it and the components
+  // inside it would leak on every navigation.
+  //
+  // So Sparke cleans up after its own swaps: snapshot the live Alpine/Livewire
+  // roots before a swap, then destroy any the swap left detached. Roots that
+  // survive the swap (a persistent shell outside the swapped <main>) stay
+  // connected and are left untouched, keeping their state. Freshly swapped-in
+  // roots re-initialise themselves through Alpine's own observer, so only
+  // teardown is ours to do. Uses only the public Alpine.destroyTree, wrapped so a
+  // future Alpine change can at worst degrade to the old (leaky) behaviour -
+  // never break navigation.
+
+  var alpineRoots = [];
+
+  /** Record the live Alpine/Livewire roots just before a swap replaces the DOM. */
+  function alpineSnapshot() {
+    if (!window.Alpine) return;
+    alpineRoots = Array.prototype.slice.call(
+      document.querySelectorAll("[wire\\:id],[x-data]")
+    );
+  }
+
+  /** Destroy the snapshotted roots the swap detached; leave survivors alone. */
+  function alpineCleanup() {
+    if (window.Alpine && typeof window.Alpine.destroyTree === "function") {
+      for (var i = 0; i < alpineRoots.length; i++) {
+        if (!alpineRoots[i].isConnected) {
+          try {
+            window.Alpine.destroyTree(alpineRoots[i]);
+          } catch (e) {}
+        }
+      }
+    }
+    alpineRoots = [];
+  }
+
+  // ===========================================================================
   // Events
   // ===========================================================================
 
@@ -1041,6 +1106,10 @@
     // later Back can restore them (see onPopState).
     captureFormState(currentUrl);
 
+    // Record the live Alpine/Livewire roots now, so once the swap detaches the
+    // outgoing ones we can tear them down (Alpine's observer misses them).
+    alpineSnapshot();
+
     // The DOM mutation itself. Wrapped in a view transition when enabled, so
     // the browser can crossfade (and animate any author-defined shared elements
     // via `view-transition-name`).
@@ -1056,6 +1125,9 @@
     function finish() {
       if (push) history.pushState({ sparke: true }, "", to);
       currentUrl = to;
+      // The swap has detached the outgoing DOM; tear down any Alpine/Livewire
+      // components it removed (Alpine's own observer would miss them).
+      alpineCleanup();
       updateActiveLinks();
       runPageScripts();
       if (!restoreScroll) {
@@ -1440,6 +1512,7 @@
         isEligibleForm: isEligibleForm,
         formActionFor: formActionFor,
         hasHxAttr: hasHxAttr,
+        hasWireNavigate: hasWireNavigate,
         serializeForm: serializeForm,
         captureFormState: captureFormState,
         restoreFormState: restoreFormState,

@@ -36,6 +36,12 @@ mkfix _vt2.html "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">
 # is a bare page to swap away to and back.
 mkfix _rerunA.html '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Rerun A</title><script src="/sparke.js"></script></head><body><main><h1>Rerun A</h1><p><a id="toB" href="/demo/_rerunB">to B</a></p><script data-sparke-rerun>window.__always=(window.__always||0)+1;</script><script data-sparke-rerun="once">window.__once=(window.__once||0)+1;</script><script>window.__plain=(window.__plain||0)+1;</script></main></body></html>'
 mkfix _rerunB.html '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Rerun B</title><script src="/sparke.js"></script></head><body><main><h1>Rerun B</h1><p><a id="toA" href="/demo/_rerunA">to A</a></p></main></body></html>'
+# Alpine/Livewire teardown. _alpineA stubs window.Alpine.destroyTree to record
+# which roots are torn down, has a persistent shell [x-data] OUTSIDE <main> and a
+# Livewire-style component [wire:id] INSIDE it. Swapping to _alpineB (single
+# <main>) must destroy the detached in-main component but leave the shell alone.
+mkfix _alpineA.html '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Alpine A</title><script>window.Alpine={destroyTree:function(el){(window.__destroyed=window.__destroyed||[]).push(el.getAttribute("wire:id")||el.getAttribute("data-name")||"?")}};</script><script src="/sparke.js"></script></head><body><div data-name="shell" x-data>shell</div><main><h1>Alpine A</h1><div wire:id="comp-1" wire:snapshot="{}" data-name="comp-1">component</div><p><a id="toB" href="/demo/_alpineB">to B</a></p></main></body></html>'
+mkfix _alpineB.html '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Alpine B</title><script src="/sparke.js"></script></head><body><div data-name="shell" x-data>shell</div><main><h1>Alpine B</h1><p><a id="toA" href="/demo/_alpineA">to A</a></p></main></body></html>'
 
 # Committed fixtures live in test/fixtures/; copy them into demo/ so the dev
 # server serves them at /demo/<name>, and track them for cleanup on exit.
@@ -101,6 +107,7 @@ tests=(
   "slownav-test.mjs"
   "vt-test.mjs"
   "vt-interrupt-test.mjs"
+  "alpine-test.mjs"
 )
 
 fail=0

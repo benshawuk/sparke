@@ -91,5 +91,28 @@ check("active exact alias no prefix match", await alm("/plan", "/plans"), false)
 check("active OR of space-separated patterns", await alm("/shop/* /sale", "/sale"), true);
 check("active none match -> false", await alm("/shop/* /sale", "/cart"), false);
 
+// wire:navigate deference. A link Livewire owns for its own SPA navigation is
+// left to Livewire, so Sparke and wire:navigate never both intercept a click.
+// Build the anchor in-page and run it through the real helpers.
+const elig = (html) =>
+  ev(
+    c,
+    `(()=>{const d=document.createElement('div');d.innerHTML=${JSON.stringify(html)};` +
+      `const a=d.querySelector('a');return window.__sparkeInternals.isEligibleLink(a);})()`
+  );
+const hasNav = (html) =>
+  ev(
+    c,
+    `(()=>{const d=document.createElement('div');d.innerHTML=${JSON.stringify(html)};` +
+      `const a=d.querySelector('a');return window.__sparkeInternals.hasWireNavigate(a);})()`
+  );
+
+check("plain same-origin link is eligible", await elig('<a href="/about">About</a>'), true);
+check("wire:navigate detected", await hasNav('<a href="/about" wire:navigate>About</a>'), true);
+check("wire:navigate.hover detected", await hasNav('<a href="/about" wire:navigate.hover>About</a>'), true);
+check("plain link has no wire:navigate", await hasNav('<a href="/about">About</a>'), false);
+check("wire:navigate link deferred (ineligible)", await elig('<a href="/about" wire:navigate>About</a>'), false);
+check("wire:navigate.hover link deferred", await elig('<a href="/about" wire:navigate.hover>About</a>'), false);
+
 c.close();
 report("unit");
