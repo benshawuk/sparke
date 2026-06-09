@@ -17,7 +17,7 @@ One `<script>` tag. No build step, no package.
 
 <!-- or via CDN -->
 <script
-  src="https://cdn.jsdelivr.net/gh/benshawuk/sparke@1/sparke.min.js"
+  src="https://cdn.jsdelivr.net/gh/benshawuk/sparke@1.1.0/sparke.min.js"
   defer
 ></script>
 ```

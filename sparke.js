@@ -1,5 +1,5 @@
 /*
- * Sparke v1
+ * Sparke v1.1
  * -----------------------------------------------------------------------------
  * Turn an ordinary multi-page website into an instant-feeling SPA by preloading
  * pages and swapping their content from memory.
