@@ -238,43 +238,21 @@ matching the browser's back-forward cache. File and password fields are not.
 
 ## Livewire & Alpine
 
-Sparke works with [Alpine](https://alpinejs.dev) and [Livewire](https://livewire.laravel.com)
-(which is built on Alpine) out of the box - no adapter, no config. When Alpine is
-on the page, two things happen automatically on each swap:
+Sparke coexists with [Alpine](https://alpinejs.dev) (and [Livewire](https://livewire.laravel.com),
+which is built on Alpine) with no config. On each swap it tears down the
+Alpine/Livewire components in the region it replaces - their effects, listeners,
+`wire:poll` timers and Echo subscriptions - so a long session doesn't leak;
+Alpine re-initialises the incoming components itself. Links carrying
+`wire:navigate` are left to Livewire, so the two navigation systems never fight.
+Keep persistent components outside `<main>` and they survive a swap with their
+state intact.
 
-- **New components initialise themselves.** Alpine's own observer picks up the
-  swapped-in DOM and boots any Livewire/Alpine components in it, hydrating from
-  the server-rendered markup. `@script` blocks re-run.
-- **Removed components are torn down.** Sparke destroys the Alpine/Livewire
-  components inside the region it swaps out (their effects, listeners,
-  `wire:poll` timers, Echo subscriptions), so a long browsing session doesn't
-  leak. This is the one thing Alpine's own observer misses when the swapped
-  wrapper (e.g. `<main>`) isn't itself an Alpine root - so Sparke does it.
-
-**Keep persistent components outside `<main>`.** Sparke swaps only `<main>` when
-both pages have exactly one. A component in the shell around `<main>` (sidebar,
-notifications, top bar) survives a swap untouched, keeping its state. A component
-*inside* `<main>` is page-scoped: it is replaced wholesale on each navigation
-(client-only state like a half-open dropdown resets, exactly as a real
-navigation would).
-
-**Don't use `wire:navigate`.** Sparke and Livewire's own SPA navigation both want
-to drive navigation; running both is the one real conflict. Let Sparke own it and
-leave `wire:navigate` off for a uniform, instant experience. If a `wire:navigate`
-link slips through, Sparke leaves that specific link to Livewire so they never
-fight - but a mixed page navigates inconsistently, so prefer all-Sparke.
-
-```js
-// Optional: some third-party Livewire/Alpine code listens for this. Sparke does
-// not fire it; re-dispatch it after a swap if you need it.
-window.addEventListener("sparke:after-swap", () =>
-  document.dispatchEvent(new CustomEvent("livewire:navigated")),
-);
-```
-
-**Known limits.** A component's JavaScript `@assets` are not loaded on swap
-(Sparke never injects `<head>` scripts from fetched pages); load shared JS
-globally. CSS `@assets` are fine - per-page stylesheets are handled like any MPA.
+**Sparke's instant-swap win needs cacheable pages, and that's the catch with
+Livewire.** Livewire marks any page containing a component `no-store`, and Sparke
+honours that - so those pages fetch on click rather than preload from memory.
+Sparke is therefore at its best on static / server-rendered pages and on
+Alpine/Flux without per-page Livewire components; for component-heavy Livewire
+apps, Livewire's own `wire:navigate` is the better fit.
 
 ## Migrating an existing site
 
