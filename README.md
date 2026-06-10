@@ -9,9 +9,7 @@ unavailable, the browser just behaves as a normal MPA.
 
 ## Documentation
 
-**Full docs live at [sparke.site](https://sparke.site) - the single source of
-truth.** Everything (how it works, configuration, events, framework notes,
-server setup, migration) is there.
+**Full docs live at [sparke.site](https://sparke.site) 
 
 ## Installation
 
